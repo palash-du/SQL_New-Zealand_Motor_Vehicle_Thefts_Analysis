@@ -15,7 +15,7 @@ FROM stolen_vehicles
 GROUP BY 1
 ORDER BY 1 ASC;
 
----Replace the numeric day of week values with the full name of each day of the week (Sunday, Monday, Tuesday, etc.)
+--Replace the numeric day of week values with the full name of each day of the week (Sunday, Monday, Tuesday, etc.)
 SELECT 
 CASE 
     WHEN DAYOFWEEK(date_stolen)=1 THEN 'Sunday'
@@ -31,8 +31,8 @@ FROM stolen_vehicles
 GROUP BY DAY_OF_WEEK
 ORDER BY MIN(DAYOFWEEK(date_stolen));
 
-	--Find the vehicle types that are most often and least often stolen
-	SELECT 
+--Find the vehicle types that are most often and least often stolen
+SELECT 
   (SELECT vehicle_type FROM (SELECT vehicle_type, COUNT(*) AS count FROM stolen_vehicles GROUP BY vehicle_type) AS counts ORDER BY count ASC LIMIT 1) AS `Minimum Stolen Vehicle Type`,
   (SELECT MIN(count) FROM (SELECT vehicle_type, COUNT(*) AS count FROM stolen_vehicles GROUP BY vehicle_type) AS counts) AS `Number of Stolen`,
   (SELECT vehicle_type FROM (SELECT vehicle_type, COUNT(*) AS count FROM stolen_vehicles GROUP BY vehicle_type) AS counts ORDER BY count DESC LIMIT 1) AS `Maximum Stolen Vehicle Type`,
@@ -49,24 +49,70 @@ WITH LUX_STAND AS (SELECT s.vehicle_type,
 	CASE WHEN m.make_type='luxury' THEN 1 ELSE 0 END AS Luxury, 1 AS ALL_vehicle
 FROM stolen_vehicles s
 LEFT JOIN make_details m
-ON s.make_id=m.make_id)
+	ON s.make_id=m.make_id)
 SELECT vehicle_type, ROUND(SUM(Luxury)/SUM(All_vehicle)*100,2) AS Pct_luxury
 FROM LUX_STAND
 WHERE vehicle_type IS NOT NULL
 GROUP BY 1
 ORDER BY 2 DESC;
 
---	Create a table where the rows represent the top 10 vehicle types, the columns represent the top 7 vehicle colors (plus 1 column for all other colors) and the values are the number of vehicles stolen.
+--Create a table where the rows represent the top 10 vehicle types, the columns represent the top 7 vehicle colors (plus 1 column for all other colors) and the values are the number of vehicles stolen.
 SELECT vehicle_type, COUNT(vehicle_id) as NUM_Vehicle,
 	SUM(CASE WHEN color= 'Silver' THEN 1 ELSE 0 END) AS Silver,
 	SUM(CASE WHEN color= 'White' THEN 1 ELSE 0 END) AS White,
-    SUM(CASE WHEN color= 'Black' THEN 1 ELSE 0 END) AS Black,
-    SUM(CASE WHEN color= 'Blue' THEN 1 ELSE 0 END) AS Blue,
+  SUM(CASE WHEN color= 'Black' THEN 1 ELSE 0 END) AS Black,
+  SUM(CASE WHEN color= 'Blue' THEN 1 ELSE 0 END) AS Blue,
 	SUM(CASE WHEN color= 'Red' THEN 1 ELSE 0 END) AS Red,
-    SUM(CASE WHEN color= 'Grey' THEN 1 ELSE 0 END) AS Grey,
-    SUM(CASE WHEN color= 'Green' THEN 1 ELSE 0 END) AS Green,
-    SUM(CASE WHEN color IN ('Gold','Brown','Yellow','Orange','Purple','Cream','Pink') THEN 1 ELSE 0 END) AS Other
+  SUM(CASE WHEN color= 'Grey' THEN 1 ELSE 0 END) AS Grey,
+  SUM(CASE WHEN color= 'Green' THEN 1 ELSE 0 END) AS Green,
+  SUM(CASE WHEN color IN ('Gold','Brown','Yellow','Orange','Purple','Cream','Pink') THEN 1 ELSE 0 END) AS Other
 FROM stolen_vehicles
 GROUP BY 1
 ORDER BY 2 DESC 
 LIMIT 10; 
+
+--Find the number of vehicles that were stolen in each region
+SELECT l.region, COUNT(DISTINCT sv.vehicle_id) AS Num_of_stolen_vehicles
+FROM stolen_vehicles sv
+LEFT JOIN locations l
+	ON sv.location_id=l.location_id
+GROUP BY 1
+ORDER BY 2 DESC;
+
+--Combine the previous output with the population and density statistics for each region
+SELECT l.region, COUNT(DISTINCT sv.vehicle_id) AS Num_of_stolen_vehicles,
+l.population,l.density
+FROM stolen_vehicles sv
+LEFT JOIN locations l
+	ON sv.location_id=l.location_id
+GROUP BY 1,3,4
+ORDER BY 2 DESC;
+
+--Do the types of vehicles stolen in the three most dense regions differ from the three least dense regions?
+	-- FIRST to Identify the three most dense regions and the three least dense regions:
+SELECT l.region, l.density, COUNT(sv.vehicle_type) AS Num_vehicle
+FROM stolen_vehicles sv
+LEFT JOIN locations l
+	ON sv.location_id=l.location_id
+GROUP BY l.region, l.density
+ORDER BY 2 DESC;
+
+    -- Here we can see the the three most dense regions: Auckland, Nelson, Wellington and the three least dense regions: Otago, Gisborne, Southland
+    -- Now we have to find the types of vehicles stolen in the three most dense regions differ from the three least dense regions:
+	(SELECT 'high_density' AS Dense_category,sv.vehicle_type, COUNT(sv.vehicle_id) AS Num_vehicle
+	FROM stolen_vehicles sv
+	LEFT JOIN locations l
+		ON sv.location_id=l.location_id
+	WHERE l.region IN ('Auckland','Nelson','Wellington')
+	GROUP BY sv.vehicle_type
+	ORDER BY 3 DESC
+	LIMIT 5)
+UNION
+	(SELECT 'Low_density',sv.vehicle_type, COUNT(sv.vehicle_id) AS Num_vehicle
+	FROM stolen_vehicles sv
+	LEFT JOIN locations l
+		ON sv.location_id=l.location_id
+	WHERE l.region IN ('Otago','Gisborne','Southland')
+	GROUP BY sv.vehicle_type
+	ORDER BY 3 DESC
+	LIMIT 5);
