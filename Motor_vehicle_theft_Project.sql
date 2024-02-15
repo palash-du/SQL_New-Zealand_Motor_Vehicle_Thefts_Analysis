@@ -57,7 +57,7 @@ GROUP BY 1
 ORDER BY 2 DESC;
 
 --	Create a table where the rows represent the top 10 vehicle types, the columns represent the top 7 vehicle colors (plus 1 column for all other colors) and the values are the number of vehicles stolen.
-SELECT  vehicle_type, COUNT(vehicle_id) as NUM_Vehicle,
+SELECT vehicle_type, COUNT(vehicle_id) as NUM_Vehicle,
 	SUM(CASE WHEN color= 'Silver' THEN 1 ELSE 0 END) AS Silver,
 	SUM(CASE WHEN color= 'White' THEN 1 ELSE 0 END) AS White,
     SUM(CASE WHEN color= 'Black' THEN 1 ELSE 0 END) AS Black,
